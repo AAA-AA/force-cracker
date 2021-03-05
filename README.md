@@ -26,3 +26,5 @@ you can execute like step3 above, specifying the dest rar file, the numbers of p
 ## Declaration 
 This is not for commercial use, it's just for personal and educational use.
 
+## Reference
+[1] https://github.com/mnismt/CompressedCrack
