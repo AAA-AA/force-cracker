@@ -1,4 +1,6 @@
 import zipfile
+from concurrent.futures.thread import ThreadPoolExecutor
+
 from rarfile import RarFile
 # from unrar import rarfile
 import os
@@ -14,6 +16,8 @@ parser.add_argument('rules', nargs='*', help='<min> <max> <character>')
 
 # Const Character
 CHARACTER = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_+=~`[]{}|\\:;\"'<>,.?/"
+
+handle_pool = ThreadPoolExecutor(20)
 
 
 class Check:
@@ -80,7 +84,6 @@ class Handler:
         self.GetFile()
         self.CheckRules()
 
-
     def GetFile(self):
         # Khai báo file
         if self.type == '.zip':
@@ -94,7 +97,7 @@ class Handler:
                 tryPass = password.encode()
             else:
                 tryPass = password
-            print(tryPass)
+            print("try %s with thread %s" % (tryPass ,  threading.currentThread().getName()))
             self.FileCrack.extractall(pwd=tryPass)
             print('=========================SUCCESS==========================')
             print('COST TIME:', time.process_time() - self.start_time, 's')
@@ -121,15 +124,22 @@ class Handler:
         if not self.rules:
             length = 1
             while True:
-                self.SendRequest(length)
-                if self.result:
-                    return
+                if length > 15:
+                    print("密码超过15位！不进行破解！")
+                    break
+                else:
+                    nThread = threading.Thread(target=self.forceFind, args=(length,))
+                    nThread.start()
+                    nThread.join()
                 length += 1
+            if not self.result:
+                print('Cannot find password with this rules')
+                return
         else:
             for length in range(self.startLength, self.maxLength + 1):
-                self.SendRequest(length)
-                if self.result:
-                    return
+                nThread = threading.Thread(target=self.forceFind, args=(length,))
+                nThread.start()
+                nThread.join()
             if not self.result:
                 print('Cannot find password with this rules')
                 return
@@ -148,18 +158,14 @@ class Handler:
                         if self.result:
                             return
 
-    def SendRequest(self, length):
-        listPass = product(self.character, repeat=length)
+    def forceFind(self, pwd_length):
+        listPass = product(self.character, repeat=pwd_length)
         for Pass in listPass:
             tryPass = ''.join(Pass)
-            # Multi Thread:
-            nThread = threading.Thread(target=self.Brute, args=(tryPass,))
-            nThread.start()
-
-            # Single Thread: 
-            # self.Brute(tryPass)
-            # if self.result:
-            #     return
+            handle_pool.submit(self.Brute(tryPass))
+            # 任意有一个线程找到了，并修改了值，则跳出
+            if self.result:
+                break
 
 
 def main():
